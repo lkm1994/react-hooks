@@ -1,0 +1,6 @@
+export const HTTP_HEADERS = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept"
+}

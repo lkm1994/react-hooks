@@ -1,16 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import { Card, CardBody, Row, Col, Button } from 'reactstrap';
 import { useSelector, useDispatch } from 'react-redux';
 import { updateTaskList } from './actions';
+import request from './ApiCalls/apicalls';
+import { HTTP_HEADERS } from './constants';
 
 function App() {
   const [taskName, setTaskName] = useState("");
-  useEffect(() => {
-    //console.log(taskList);
-  })
+  const [taskDetail, setTaskDetail] = useState({});
+  const [addSuccess, setAddSuccess] = useState(false);
   const storeTaskList = useSelector(state => state);
   const dispatch = useDispatch();
+
+  useEffect(() => {
+    getAllItems();
+  }, [addSuccess])
+
   const submitTask = () => {
     let flag = false;
     if (taskName) {
@@ -26,34 +32,82 @@ function App() {
         //setTaskList([...taskList, { name: taskName, completed: false }])
         let tempTaskList = [{ name: taskName, completed: false }];
         dispatch(updateTaskList(tempTaskList));
+        setTaskDetail({ name: taskName, completed: false })
+        addItem({ name: taskName, completed: false });
+        setAddSuccess(!addSuccess);
+        //const results = addItem()
         setTaskName("");
       }
     }
   }
   const toggleComplete = (event) => {
-    let tempTaskList = [...storeTaskList.taskList];
-    for (let i = 0; i < tempTaskList.length; i++) {
-      if (tempTaskList[i].name === event.name) {
-        tempTaskList[i].completed = !event.completed
+    let tempTaskList = {};
+    for (let i = 0; i < storeTaskList.taskList.length; i++) {
+      if (storeTaskList.taskList[i].name === event.name) {
+        tempTaskList = {
+          id: event._id,
+          name: event.name,
+          completed: !event.completed
+        }
         break;
       }
     }
     //setTaskList(tempTaskList)
-    console.log(tempTaskList);
-    dispatch(updateTaskList(tempTaskList));
+    setTaskDetail(tempTaskList)
+    updateItem(tempTaskList);
+    setAddSuccess(!addSuccess);
+    //dispatch(updateTaskList(tempTaskList));
   }
   const removeNode = (event) => {
-    let tempTaskList = [...storeTaskList.taskList];
-    for (let i = 0; i < tempTaskList.length; i++) {
-      debugger
-      if (tempTaskList[i].name === event.name) {
-        tempTaskList.splice(i, 1);
+    let itemId;
+    for (let i = 0; i < storeTaskList.taskList.length; i++) {
+      if (storeTaskList.taskList[i].name === event.name) {
+        itemId = event._id
         break;
       }
     }
     //setTaskList(tempTaskList);
-    dispatch(updateTaskList(tempTaskList));
+    //dispatch(updateTaskList(tempTaskList));
+    deleteItem(itemId);
+    setAddSuccess(!addSuccess);
   }
+  const deleteItem = useCallback((id) => {
+    const results = request(`http://localhost:3000/todo/deleteitem/${id}` , { method: 'DELETE', headers: HTTP_HEADERS });
+    results.then(function (resultdata) {
+      return resultdata.data.addItem
+    }).catch(err => {
+      console.log(err)
+    })
+  })
+  const updateItem = useCallback((data) => {
+    let tempRequestBody = {
+      name: data.name,
+      completed: data.completed
+    }
+    const results = request(`http://localhost:3000/todo/updateitem/${data.id}` , { data: tempRequestBody, method: 'PUT', headers: HTTP_HEADERS });
+    results.then(function (resultdata) {
+      return resultdata.data.addItem
+    }).catch(err => {
+      console.log(err)
+    })
+  })
+  const getAllItems = useCallback(() => {
+    const results = request('http://localhost:3000/todo/fetchtodoItems', { method: 'GET', headers: HTTP_HEADERS });
+    results.then(function (result) {
+      dispatch(updateTaskList(result.data.fetchItems))
+      return result
+    }).catch((err) => {
+      console.log(err)
+    })
+  }, []);
+  const addItem = useCallback((data) => {
+    const results = request('http://localhost:3000/todo/add', { data: data, method: 'POST', headers: HTTP_HEADERS });
+    results.then(function (resultdata) {
+      return resultdata.data.addItem
+    }).catch(err => {
+      console.log(err)
+    })
+  })
 
   return (
     <div className="app">
@@ -88,13 +142,11 @@ const ToDoItem = (props) => {
   useEffect(() => {
     setToDoList(storeTaskList.taskList)
   }, [storeTaskList.taskList]);
-
   return (
     toDoList.map(item => {
-      console.log(item)
       return (
-        <Card key={item.name} className="card-style">
-          <CardBody  className={(item.completed === true) ? "list-group-item-success" : ""}>
+        <Card key={item._id} className="card-style">
+          <CardBody className={(item.completed === true) ? "list-group-item-success" : ""}>
             <Row>
               <Col xs="10">
                 {item.name}
@@ -112,5 +164,9 @@ const ToDoItem = (props) => {
     })
   );
 }
+
+
+
+
 //const ToDoItem = (props) => {
 export default App;
